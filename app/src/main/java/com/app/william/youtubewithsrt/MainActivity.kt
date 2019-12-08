@@ -18,7 +18,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    private val srtHepler = SrtHelper()
+    private val srtHelper = SrtHelper()
 
     private var youTubePlayerFragment: YouTubePlayerSupportFragment? = null
 
@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
 
-        srtHepler.content.observe(this, Observer {
+        srtHelper.content.observe(this, Observer {
             if (it == null) {
                 textView.visibility = GONE
             } else {
@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity() {
                     player: YouTubePlayer,
                     p2: Boolean
                 ) {
+
                     player.apply {
                         cueVideo("hLQl3WQQoQ0")
                         setPlaybackEventListener(object : YouTubePlayer.PlaybackEventListener {
@@ -55,19 +56,21 @@ class MainActivity : AppCompatActivity() {
 
                             override fun onBuffering(p0: Boolean) {
                                 if (p0)
-                                    srtHepler.stop()
+                                    srtHelper.stop()
                             }
 
                             override fun onPlaying() {
-                                srtHepler.start(player.currentTimeMillis)
+                                srtHelper.start(player.currentTimeMillis)
                             }
 
                             override fun onStopped() {
-                                srtHepler.stop()
+                                srtHelper.stop()
+                                player.play()
+
                             }
 
                             override fun onPaused() {
-                                srtHepler.stop()
+                                srtHelper.stop()
                             }
                         })
                     }
@@ -97,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         SrtModel().getList().subscribeOn(Schedulers.io())
             .subscribe(object : SingleObserver<List<Srt>> {
                 override fun onSuccess(t: List<Srt>) {
-                    srtHepler.setList(t)
+                    srtHelper.setList(t)
                 }
 
                 override fun onSubscribe(d: Disposable) {
@@ -108,6 +111,7 @@ class MainActivity : AppCompatActivity() {
 
                 }
             })
+
     }
 
 
