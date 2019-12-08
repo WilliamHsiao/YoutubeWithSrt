@@ -37,7 +37,7 @@ class SrtModel {
                                     startTime = toTime(st)
 
                                     val e = toTime(et)
-                                    endTime = if (e.milli < startTime.minute) startTime else e
+                                    endTime = if (e.milli < startTime.milli) startTime else e
                                 }
                                 list.add(srt)
                             }
