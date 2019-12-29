@@ -6,56 +6,53 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.view.View.GONE
-import android.view.View.VISIBLE
 import androidx.appcompat.app.AppCompatActivity
+import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
+import com.app.william.youtubewithsrt.databinding.ActivityMainBinding
 import com.google.android.youtube.player.YouTubeInitializationResult
 import com.google.android.youtube.player.YouTubePlayer
 import com.google.android.youtube.player.YouTubePlayerSupportFragment
-import io.reactivex.SingleObserver
-import io.reactivex.disposables.Disposable
-import io.reactivex.schedulers.Schedulers
-import kotlinx.android.synthetic.main.activity_main.*
+
 
 class MainActivity : AppCompatActivity() {
 
-    private val srtHelper = SrtHelper()
 
     private var youTubePlayerFragment: YouTubePlayerSupportFragment? = null
     private var player: YouTubePlayer? = null
+    private lateinit var viewModel: MainViewModel
+    private lateinit var binding: ActivityMainBinding
 
-    private var videoId: String = "hLQl3WQQoQ0"
+    private val searchFragment = SearchFragment()
+
+    //   private var videoId: String = "hLQl3WQQoQ0"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        viewModel = ViewModelProvider(this).get(MainViewModel::class.java)
 
-
-        srtHelper.content.observe(this, Observer {
-            if (it == null) {
-                textView.visibility = GONE
-            } else {
-                textView.visibility = VISIBLE
-                textView.text = it.content
-            }
-        })
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
+        binding.model = viewModel
+        binding.lifecycleOwner = this
 
         youTubePlayerFragment =
             supportFragmentManager.findFragmentById(R.id.youtubeView) as YouTubePlayerSupportFragment?
 
-        initFragment()
-
-
-        button.text = "Adele - Someone Like You"
-        setStrLoad("Adele", "Someone Like You")
+        viewModel.videoId.observe(this, Observer {
+            if (it != null) {
+                player?.release()
+                initFragment(it)
+            }
+        })
     }
 
     fun search(view: View) {
-        startActivityForResult(Intent(this, SearchActivity::class.java), 0)
+        //  startActivityForResult(Intent(this, SearchActivity::class.java), 0)
+        searchFragment.show(supportFragmentManager, "search")
     }
 
-    private fun initFragment(){
+    private fun initFragment(videoId: String) {
         youTubePlayerFragment!!.initialize(
             YouTubeApiKey.Key,
             object : YouTubePlayer.OnInitializedListener {
@@ -65,34 +62,14 @@ class MainActivity : AppCompatActivity() {
                     p2: Boolean
                 ) {
                     player = p1
-                    player?.apply {
-                        cueVideo(videoId)
-                        setPlaybackEventListener(object : YouTubePlayer.PlaybackEventListener {
-                            override fun onSeekTo(p0: Int) {
-                            }
-
-                            override fun onBuffering(p0: Boolean) {
-                                if (p0)
-                                    srtHelper.stop()
-                            }
-
-                            override fun onPlaying() {
-                                srtHelper.start(player!!.currentTimeMillis)
-                            }
-
-                            override fun onStopped() {
-                                srtHelper.stop()
-                                player!!.play()
-
-                            }
-
-                            override fun onPaused() {
-                                srtHelper.stop()
-                            }
-                        })
+                    try {
+                        player?.apply {
+                            cueVideo(videoId)
+                            setPlaybackEventListener(viewModel.playbackEventListener(this))
+                        }
+                    } catch (e: java.lang.Exception) {
+                        Log.e("initFragment", e.message)
                     }
-
-
                 }
 
                 override fun onInitializationFailure(
@@ -121,33 +98,10 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         when (resultCode) {
             0 -> {
-                videoId = data!!.getStringExtra("videoId")
-                player?.release()
-                initFragment()
-                button.text = "${data.getStringExtra("artist")} - ${data.getStringExtra("song")}"
-                setStrLoad(data.getStringExtra("artist"), data.getStringExtra("song"))
+                if (data != null) viewModel.changeVideo(data)
             }
 
         }
-
-    }
-
-    private fun setStrLoad(a: String, s: String) {
-        srtHelper.clean()
-        SrtModel().getList(a, s).subscribeOn(Schedulers.io())
-            .subscribe(object : SingleObserver<List<Srt>> {
-                override fun onSuccess(t: List<Srt>) {
-                    srtHelper.setList(t)
-                }
-
-                override fun onSubscribe(d: Disposable) {
-
-                }
-
-                override fun onError(e: Throwable) {
-
-                }
-            })
 
     }
 

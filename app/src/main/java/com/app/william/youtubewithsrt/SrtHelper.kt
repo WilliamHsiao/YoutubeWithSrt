@@ -9,6 +9,10 @@ class SrtHelper {
     private val handlerEnd: Handler = Handler()
     val content: MutableLiveData<Srt?> = MutableLiveData()
 
+    init {
+        content.value = null
+    }
+
     private var srt: Srt? = null
 
     private var runnableStart: Runnable = Runnable {
@@ -71,5 +75,6 @@ class SrtHelper {
 
     fun clean() {
         list = null
+        content.postValue(null)
     }
 }

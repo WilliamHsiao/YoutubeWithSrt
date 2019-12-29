@@ -1,31 +1,36 @@
 package com.app.william.youtubewithsrt
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
+import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
-import kotlinx.android.synthetic.main.activity_search.*
+import com.app.william.youtubewithsrt.databinding.ActivitySearchBinding
+
 
 class SearchActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_search)
+        val binding: ActivitySearchBinding =
+            DataBindingUtil.setContentView(this, R.layout.activity_search)
 
         val searchModel: SearchViewModel = ViewModelProvider(this).get(SearchViewModel::class.java)
         val searchAdapter = SearchAdapter(searchModel)
 
-
-        editText.setOnEditorActionListener { text, actionId, _ ->
+        binding.editText.requestFocus()
+        binding.editText.setOnEditorActionListener { text, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 searchModel.search(text.text.toString())
-                return@setOnEditorActionListener true
+                text.clearFocus()
             }
             false
         }
-        recyclerView.adapter = searchAdapter
+        binding.recyclerView.adapter = searchAdapter
         searchModel.list.observe(this, Observer {
             if (it != null) searchAdapter.submitList(it)
         })
