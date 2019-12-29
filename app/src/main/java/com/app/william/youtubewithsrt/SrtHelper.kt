@@ -69,4 +69,7 @@ class SrtHelper {
         return null
     }
 
+    fun clean() {
+        list = null
+    }
 }

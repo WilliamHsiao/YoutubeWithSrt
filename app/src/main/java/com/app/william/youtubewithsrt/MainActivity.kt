@@ -1,9 +1,11 @@
 package com.app.william.youtubewithsrt
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +23,9 @@ class MainActivity : AppCompatActivity() {
     private val srtHelper = SrtHelper()
 
     private var youTubePlayerFragment: YouTubePlayerSupportFragment? = null
+    private var player: YouTubePlayer? = null
+
+    private var videoId: String = "hLQl3WQQoQ0"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,17 +44,29 @@ class MainActivity : AppCompatActivity() {
         youTubePlayerFragment =
             supportFragmentManager.findFragmentById(R.id.youtubeView) as YouTubePlayerSupportFragment?
 
+        initFragment()
+
+
+        button.text = "Adele - Someone Like You"
+        setStrLoad("Adele", "Someone Like You")
+    }
+
+    fun search(view: View) {
+        startActivityForResult(Intent(this, SearchActivity::class.java), 0)
+    }
+
+    private fun initFragment(){
         youTubePlayerFragment!!.initialize(
             YouTubeApiKey.Key,
             object : YouTubePlayer.OnInitializedListener {
                 override fun onInitializationSuccess(
                     p0: YouTubePlayer.Provider?,
-                    player: YouTubePlayer,
+                    p1: YouTubePlayer,
                     p2: Boolean
                 ) {
-
-                    player.apply {
-                        cueVideo("hLQl3WQQoQ0")
+                    player = p1
+                    player?.apply {
+                        cueVideo(videoId)
                         setPlaybackEventListener(object : YouTubePlayer.PlaybackEventListener {
                             override fun onSeekTo(p0: Int) {
                             }
@@ -60,12 +77,12 @@ class MainActivity : AppCompatActivity() {
                             }
 
                             override fun onPlaying() {
-                                srtHelper.start(player.currentTimeMillis)
+                                srtHelper.start(player!!.currentTimeMillis)
                             }
 
                             override fun onStopped() {
                                 srtHelper.stop()
-                                player.play()
+                                player!!.play()
 
                             }
 
@@ -97,7 +114,27 @@ class MainActivity : AppCompatActivity() {
                 }
             })
 
-        SrtModel().getList().subscribeOn(Schedulers.io())
+    }
+
+    @SuppressLint("SetTextI18n")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when (resultCode) {
+            0 -> {
+                videoId = data!!.getStringExtra("videoId")
+                player?.release()
+                initFragment()
+                button.text = "${data.getStringExtra("artist")} - ${data.getStringExtra("song")}"
+                setStrLoad(data.getStringExtra("artist"), data.getStringExtra("song"))
+            }
+
+        }
+
+    }
+
+    private fun setStrLoad(a: String, s: String) {
+        srtHelper.clean()
+        SrtModel().getList(a, s).subscribeOn(Schedulers.io())
             .subscribe(object : SingleObserver<List<Srt>> {
                 override fun onSuccess(t: List<Srt>) {
                     srtHelper.setList(t)
@@ -113,6 +150,5 @@ class MainActivity : AppCompatActivity() {
             })
 
     }
-
 
 }

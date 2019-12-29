@@ -4,21 +4,52 @@ import io.reactivex.Single
 import io.reactivex.Single.create
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
+import java.net.URLEncoder
 
 class SrtModel {
+    private var artist:String=""
+    private var song:String=""
+    private fun getDocument() :Single<Document>{
 
-    fun getList(): Single<List<Srt>> {
-        return create {
+        return create{
+
+            if(artist.isEmpty() || song.isEmpty())
+                it.onError(Throwable("getDocument Error"))
+
+            val document: Document? =
+                Jsoup.connect("https://www.rentanadviser.com/en/subtitles/getsubtitle.aspx?artist=${toSearch(artist)}&song=${toSearch(song)}&type=srt")
+                    .maxBodySize(0).get()
+
+            if(document==null){
+                it.onError(Throwable("getDocument Error"))
+            }else {
+                it.onSuccess(document)
+            }
+        }
+    }
+
+    private fun getContent(document:Document):Single<String>{
+        val element:Element?=document.getElementById("ctl00_ContentPlaceHolder1_lblSubtitle")
+
+        return if(element==null){
+            resetSongName()
+            getContent()
+        }else{
+            create{
+                it.onSuccess(element.html())
+            }
+        }
+
+
+    }
+
+    private fun getList(str:String): Single<List<Srt>> {
+        return create{
             try {
-                val document: Document? =
-                    Jsoup.connect("https://www.rentanadviser.com/en/subtitles/getsubtitle.aspx?artist=Adele&song=Someone%20Like%20You&type=srt")
-                        .maxBodySize(0).get()
 
-                val content: String =
-                    document!!.getElementById("ctl00_ContentPlaceHolder1_lblSubtitle").html()
-
-                val arrText = Parser.unescapeEntities(content, false).split("<br>")
+                val arrText = Parser.unescapeEntities(str, false).split("<br>")
 
                 val list: MutableList<Srt> = ArrayList()
 
@@ -64,8 +95,39 @@ class SrtModel {
                 it.onError(e)
                 return@create
             }
+
         }
 
+
+    }
+
+    private fun getContent(): Single<String>{
+        return  getDocument()
+            .retry()
+            .flatMap{t-> getContent(t)}
+    }
+
+    fun getList(a:String,s:String): Single<List<Srt>> {
+        //Adele
+        //Someone%20Like%20You
+        artist=a
+        song=s
+        return getContent()
+            .flatMap {t->getList(t)}
+
+    }
+
+    private fun toSearch(str:String):String{
+        return URLEncoder.encode(str, "UTF-8")
+    }
+
+    private fun resetSongName(){
+        val lastIndex:Int=song.lastIndexOf(" ")
+        song = if(lastIndex==-1){
+            ""
+        }else{
+            song.substring(0,lastIndex)
+        }
     }
 
     private fun toTimeString(s: String): String {
